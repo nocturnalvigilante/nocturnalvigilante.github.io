@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Semantics of Missingness in Medical AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+/* Layout: SAIL-blog style. White page, Open Sans, centered title block, dark grey text, blue links, cardinal rule. Single light theme by design. */
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --fg: #383838;
+  --muted: #8a8a8a;
+  --rule: #e6e6e6;
+  --panel: #ffffff;
+  --code-bg: #f3f4f5;
+  --blue: #0076df;
+  --red: #d62728;
+  --cardinal: #8c1515;
+  --green: #2ca02c;
+  --before: #c6c6c6;
+  --mid: #8fbbe8;
+  --axis: #333333;
+  --c0: #1f77b4;
+  --c1: #ff7f0e;
+  --c2: #2ca02c;
+  --font-plot: "DejaVu Serif", "Bitstream Vera Serif", Georgia, serif;
+  --font-body: "Open Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-fig: "Open Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: Monaco, Consolas, "Lucida Console", monospace;
+}
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 80px;
+}
+.topbar { max-width: 1100px; margin: 0 auto 36px; border-bottom: 5px solid var(--cardinal); padding-top: 18px; }
+.wrap { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 1em; }
+header { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding-bottom: 22px; margin-bottom: 8px; border-bottom: 1px solid var(--rule); }
+h1 { font-size: clamp(30px, 5.5vw, 44px); line-height: 1.2; font-weight: 400; margin: 0 0 6px; text-wrap: balance; color: #212529; }
+.authors { font-size: 19px; color: var(--fg); margin: 0; }
+.author { color: var(--blue); }
+.date { font-size: 14px; color: var(--muted); margin: 6px 0 0; }
+h2 { font-size: 26px; line-height: 1.3; font-weight: 700; margin: 1.1em 0 0; text-wrap: balance; }
+h3 { font-size: 21px; line-height: 1.3; font-weight: 700; margin: 0.6em 0 0; }
+h4 { font-size: 16px; font-weight: 700; margin: 0; }
+p { margin: 0; }
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; color: #22527b; }
+a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+ul, ol { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 0.4em; }
+code { font-family: var(--font-mono); font-size: 0.8em; background: var(--code-bg); padding: 0.15em 0.4em; border-radius: 2px; color: #24292e; }
+.note { font-style: italic; color: var(--muted); }
+.red { color: var(--red); }
+.green { color: var(--green); }
+.eq { display: flex; align-items: center; gap: 12px; overflow-x: auto; padding: 4px 0; font-size: 1.15em; }
+.eq math { flex: 1; min-width: max-content; }
+.eqn { flex: none; color: var(--muted); font-size: 0.85em; }
+li.cont { list-style: none; }
+
+/* Figures: plain, centered captions as on the SAIL blog */
+figure { margin: 0.8em 0; display: flex; flex-direction: column; gap: 14px; padding: 0; background: none; border: 0; font-family: var(--font-fig); font-size: 15px; line-height: 1.45; min-width: 0; }
+figcaption { text-align: center; font-size: 0.93em; color: var(--fg); line-height: 1.5; }
+figcaption b { font-weight: 700; }
+.legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; font-size: 13.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend i { width: 14px; height: 14px; background: var(--c); display: inline-block; flex: none; }
+.takeaway { text-align: center; font-weight: 600; font-size: 16.5px; color: var(--red); text-wrap: balance; }
+
+.journey { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.visit { border: 1px solid var(--rule); padding: 12px; display: flex; flex-direction: column; gap: 3px; font-size: 14px; text-align: left; }
+.visit .k { color: var(--blue); font-weight: 700; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+.visit .who { font-weight: 700; font-size: 15px; }
+.report { border: 1px solid #b5b5b5; padding: 10px 14px; font-size: 15px; text-align: left; }
+@media (max-width: 680px) { .journey { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 380px) { .journey { grid-template-columns: 1fr; } }
+
+.ab { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; text-align: left; }
+.ab-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ab-col h4 { color: var(--blue); font-size: 14.5px; }
+.box { border: 1px solid var(--rule); padding: 9px 12px; }
+.box.strong { border-color: #b5b5b5; }
+.box.good { border-color: var(--green); color: var(--green); }
+.box.bad { border-color: var(--red); color: var(--red); }
+@media (max-width: 600px) { .ab { grid-template-columns: 1fr; } }
+
+.vchart { display: flex; flex-wrap: wrap; justify-content: center; gap: 28px 44px; }
+.vgroup { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.vbars { display: flex; align-items: flex-end; gap: 8px; height: 200px; border-bottom: 2px solid var(--axis); }
+.vbar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.vbar i { display: block; width: 46px; height: calc(var(--v) * 2.6px); background: var(--c); }
+.vlabel { font-size: 14px; font-weight: 600; text-align: center; max-width: 220px; }
+.delta { font-size: 13.5px; font-weight: 700; color: var(--green); }
+
+.hchart { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.hrow { display: grid; grid-template-columns: 158px minmax(0, 1fr) 56px; gap: 4px 12px; align-items: center; }
+.hname { font-size: 14px; font-weight: 600; }
+.hn { font-size: 12px; font-weight: 400; color: var(--muted); }
+.hbars { display: flex; flex-direction: column; gap: 3px; }
+.htrack { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.htrack i { display: block; height: 12px; width: calc(var(--v) * 1.25%); background: var(--c); flex: none; }
+.hdelta { font-size: 13.5px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.hdelta.down { color: var(--red); }
+.hdelta.up { color: var(--green); }
+.hsep { border-top: 1px dashed var(--rule); }
+@media (max-width: 520px) { .hrow { grid-template-columns: 104px minmax(0, 1fr) 46px; } .htrack i { width: calc(var(--v) * 1.05%); } }
+
+.pipe { display: flex; align-items: stretch; gap: 8px; }
+.step { flex: 1; border: 1px solid var(--rule); padding: 10px; text-align: center; font-size: 14px; min-width: 0; }
+.step.hot { background: var(--red); border-color: var(--red); color: #ffffff; flex: 1.5; }
+.arrow { align-self: center; font-size: 22px; color: var(--muted); flex: none; }
+@media (max-width: 620px) { .pipe { flex-direction: column; } .arrow { transform: rotate(90deg); } }
+
+.table-box { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; line-height: 1.45; font-variant-numeric: tabular-nums; text-align: left; }
+th, td { text-align: left; padding: 0.5em 1em; border: 1px solid rgba(0, 0, 0, 0.1); vertical-align: top; }
+th { font-weight: 700; background: #f7f7f7; }
+td.n, th.n { text-align: right; white-space: nowrap; }
+.big { font-size: 60px; font-weight: 700; line-height: 1; color: var(--blue); }
+.statrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px 28px; text-align: left; }
+.statrow p { flex: 1; min-width: 220px; max-width: 420px; font-size: 16px; }
+@media (max-width: 480px) { body { font-size: 16px; } .vbar i { width: 38px; } .vchart { gap: 24px 28px; } }
+.vchart, .hchart, .legend { font-family: var(--font-plot); }
+.vbars { border-left: 1px solid var(--axis); border-bottom: 1px solid var(--axis); padding: 0 10px; background-image: repeating-linear-gradient(to top, transparent 0, transparent 51px, #e3e3e3 51px, #e3e3e3 52px); }
+.vlabel, .hname { font-weight: 700; }
+.legend { border: 1px solid #cccccc; border-radius: 3px; padding: 6px 12px; align-self: center; color: var(--fg); font-weight: 400; }
+.legend i { border-radius: 1px; }
+.hdelta.down { color: #d62728; }
+.hdelta.up, .delta { color: #2ca02c; }
+figure .journey, figure .report, figure .ab, figure .pipe, figure .statrow, figure .takeaway, figure table { font-family: var(--font-plot); }
+.visit .k, .ab-col h4, .big { color: var(--c0); }
+.visit, .box, .step { border-color: #cfcfcf; }
+.step { display: flex; flex-direction: column; justify-content: center; background: #eef4fa; border-color: var(--c0); }
+.step.hot { background: var(--c0); border-color: var(--c0); color: #ffffff; }
+.arrow { color: #555555; }
+</style>
+
+</head>
+<body>
+<div class="topbar" aria-hidden="true"></div>
+<article class="wrap">
+<header>
+  <h1>Semantics of Missingness in Medical AI: A Case Study in Rare-Disease Diagnosis with "No X"</h1>
+  <p class="authors"><span class="author">Raj Hansini</span>, <a href="https://zikai-zhou.github.io/">Cyrus Zhou</a></p>
+  <p class="date">November 12, 2026</p>
+</header>
+
+<h2>A Patient Journey</h2>
+<p>Rare-disease patients often see many doctors before diagnosis. Each doctor checks for the disease they suspect and records negative findings as stated absences, such as "no lens dislocation"; we call these "no X" (<a href="#fig-1">Figure 1</a>).</p>
+
+<figure id="fig-1">
+  <div class="journey">
+    <div class="visit"><span class="k">Visit 1</span><span class="who">Pediatrician</span><span>Sees: tall, long fingers</span><span>Suspects: Marfan</span><span>Checks: the eye lens</span><span class="red">Writes: "no lens dislocation"</span></div>
+    <div class="visit"><span class="k">Visit 2</span><span class="who">Cardiologist</span><span>Finds: wide aortic root</span><span>Suspects: Loeys-Dietz</span><span>Checks: the mouth</span><span class="red">Writes: "no bifid uvula"</span></div>
+    <div class="visit"><span class="k">Visit 3</span><span class="who">Metabolic doctor</span><span>Suspects: homocystinuria</span><span>Checks: learning, development</span><span class="red">Writes: "no intellectual disability"</span></div>
+    <div class="visit"><span class="k">Visit 4</span><span class="who">Geneticist</span><span>Orders: gene test</span><span>Finds: FBN1 variant</span><span class="green">Diagnosis: Marfan syndrome</span></div>
+  </div>
+  <div class="report"><b>Case report:</b> tall · long fingers · wide aortic root · <span class="red">no lens dislocation · no bifid uvula · no intellectual disability</span></div>
+  <p class="takeaway">Our hypothesis: every "no" records a disease that someone suspected</p>
+  <figcaption><b>Figure 1: An Illustrative Patient Journey</b></figcaption>
+</figure>
+
+<p>Current diagnosis tools treat every "no X" as evidence against the diseases that have X. Yet in <a href="#fig-1">Figure 1</a>, the pediatrician recorded "no lens dislocation" because they suspected Marfan, the correct diagnosis. Like an ordered heart scan, a "no X" reveals what the doctor had in mind. We ask whether it can serve as a clue for the diagnosis.</p>
+<p>That's where our work comes in. We use Phenopacket Store, 4,782 published rare-disease case reports, each listing the patient's symptoms as Human Phenotype Ontology (HPO) terms and the confirmed diagnosis. Diagnosis tools look up each disease's symptoms in a database curated from many of these same papers, so a tool could get a case right because it has already seen it, a problem known as data leakage. We therefore report results only on leak-free cases.</p>
+<p>In most leak-free cases, at least one "no X" is a known feature of the true disease (<a href="#fig-5">Figure 5</a>). Absences mark where the doctor was looking, so penalizing them pushes the correct diagnosis down.</p>
+<p>We evaluated <a href="https://github.com/TheJacksonLaboratory/LIRICAL">LIRICAL</a> (<a href="https://doi.org/10.1016/j.ajhg.2020.06.021">Robinson et al., AJHG 2020</a>), the standard likelihood-ratio tool for rare-disease diagnosis, and our scorer, a simplified re-implementation for controlled experiments (<a href="#table-1">Table 1</a>). Counting "no X" as a weak clue instead of a rule-out, a one-term change, raised top-10 accuracy for both (<a href="#fig-6">Figure 6</a>).</p>
+<p>Every LLM we tested performs better when the absences are kept (<a href="#fig-7">Figure 7</a>), but its ranking does not show how each absence was used. Our categorizer has the LLM sort each candidate disease's symptoms into evidence buckets that a formula then weighs (<a href="#fig-9">Figure 9</a>). It raised the top-10 accuracy of Gemini 3.5 Flash (<a href="#fig-11">Figure 11</a>), and the learned weight for absent symptoms was positive.</p>
+<p><a href="https://github.com/exomiser/Exomiser">Exomiser</a> 14.0.1, a widely used tool that ranks genes and diseases by matching a patient's HPO terms to known disease phenotypes, has a parsing bug that reads "no X" as X. The bug raises its top-10 accuracy (<a href="#fig-8">Figure 8</a>), independent evidence that "no X" points to the right disease. Reese et al. (EJHG 2026) compared LLMs against this version, so its Exomiser scores include the bug's effect.</p>
+
+<h3>What doctors mean by "no"</h3>
+<p>Absences do not all mean the same thing. We distinguish three kinds (<a href="#fig-2">Figure 2</a>); the first matches the GA4GH Phenopackets definition of an excluded feature, "looked for, but found to be absent".</p>
+<figure id="fig-2">
+  <div class="table-box"><table>
+    <tr><th>What the patient file says</th><th>What the doctor means</th><th>What a tool should do</th></tr>
+    <tr><td class="red">"No lens dislocation"</td><td>I suspected Marfan, checked, and did not find it</td><td>Treat as a weak clue for Marfan</td></tr>
+    <tr><td>Silent: chest wall deformity (easy to see)</td><td>It would have been written down if present</td><td>Treat as probably absent</td></tr>
+    <tr><td>Silent: heart valve (needs a scan)</td><td>Nobody checked</td><td>Treat as unknown</td></tr>
+  </table></div>
+  <p class="takeaway">Absences point to the right answer, if you know why they are absent</p>
+  <figcaption><b>Figure 2: Three Kinds of Absence in a Case Report.</b></figcaption>
+</figure>
+
+<h3>Evaluation setup</h3>
+<p class="note">Note: This section covers the data, tools and scoring; skip it to go straight to the results.</p>
+<p><b>Data.</b> Of Phenopacket Store's 4,782 cases, 2,701 (56.5%) are leaked: the HPO annotation for the true disease cites the case's own paper. All main results use leak-free cases (<a href="#table-2">Table 2</a>), of which 1,172 have at least one "no X". Some experiments use slightly fewer; each figure gives its count.</p>
+<p><b>Systems.</b> Three symbolic tools that score diseases with a fixed formula (LIRICAL 2.4.1, our scorer, Exomiser 14.0.1) and six LLMs (GPT-5, GPT-5-mini, Gemini 3.5 Flash, Claude Sonnet 5, DeepSeek V4.1 Flash, GPT-4o).</p>
+<p><b>Metric.</b> Top-10 accuracy: the fraction of cases whose true disease ranks in the top ten.</p>
+<p><b>How LIRICAL scores a disease.</b> For each candidate disease <i>D</i>, LIRICAL multiplies one likelihood ratio per symptom:</p>
+<div class="eq"><math display="block"><mi>S</mi><mo stretchy="false">(</mo><mi>D</mi><mo stretchy="false">)</mo><mo>=</mo><munder><mo>∏</mo><mrow><mi>X</mi><mo>∈</mo><mi>P</mi></mrow></munder><mfrac><mrow><msub><mi>f</mi><mi>D</mi></msub><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo></mrow><mrow><msub><mi>f</mi><mtext>bg</mtext></msub><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo></mrow></mfrac><mo>×</mo><munder><mo>∏</mo><mrow><mi>X</mi><mo>∈</mo><mi>A</mi></mrow></munder><mfrac><mrow><mn>1</mn><mo>−</mo><msub><mi>f</mi><mi>D</mi></msub><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo></mrow><mrow><mn>1</mn><mo>−</mo><msub><mi>f</mi><mtext>bg</mtext></msub><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo></mrow></mfrac></math><span class="eqn">(1)</span></div>
+<ul>
+  <li><i>P</i>: symptoms the patient has</li>
+  <li><i>A</i>: stated absences ("no X")</li>
+  <li><i>f</i><sub><i>D</i></sub>(<i>X</i>): fraction of patients with disease <i>D</i> who have <i>X</i></li>
+  <li><i>f</i><sub>bg</sub>(<i>X</i>): how common <i>X</i> is across all diseases (definitions per tool in <a href="#table-1">Table 1</a>)</li>
+  <li>Each "no X" multiplies a disease that has <i>X</i> by a factor below one, so it always lowers that disease (<a href="#fig-3">Figure 3</a>, <a href="#fig-4">Figure 4</a>)</li>
+</ul>
+<figure id="fig-3">
+  <div class="table-box"><table>
+    <tr><th>Patient file</th><th>Likelihood ratio for the disease</th></tr>
+    <tr><td>Has X</td><td>× f<sub>D</sub>(X) ÷ f<sub>bg</sub>(X)</td></tr>
+    <tr><td><b>"No X"</b></td><td class="red"><b>× (1 − f<sub>D</sub>(X)) ÷ (1 − f<sub>bg</sub>(X))</b></td></tr>
+  </table></div>
+  <figcaption><b>Figure 3: LIRICAL's Two Likelihood Ratios (Equation 1).</b></figcaption>
+</figure>
+<figure id="fig-4">
+  <div class="ab">
+    <div class="ab-col">
+      <h4>Example A: the patient file says "seizures"</h4>
+      <div class="box strong">Patient file: <b>"seizures"</b></div>
+      <div class="box">LIRICAL: diseases with seizures × f<sub>D</sub>(X) ÷ f<sub>bg</sub>(X) ↑</div>
+      <div class="box good">✓ Correct: diseases with seizures move up</div>
+    </div>
+    <div class="ab-col">
+      <h4>Example B: the patient file says "no lens dislocation"</h4>
+      <div class="box strong">Patient file: <b>"no lens dislocation"</b></div>
+      <div class="box">LIRICAL: Marfan × (1 − f<sub>D</sub>(X)) ÷ (1 − f<sub>bg</sub>(X)) ↓</div>
+      <div class="box bad">✗ Wrong: Marfan moves down, though the doctor checked <b>because</b> they suspected Marfan</div>
+    </div>
+  </div>
+  <p class="takeaway">"Looked for, not found" is read as "ruled out"</p>
+  <figcaption><b>Figure 4: LIRICAL Reads "No" as a Logical NOT.</b></figcaption>
+</figure>
+<p><b>Our scorer.</b> A simplified LIRICAL with the same two likelihood ratios, built to run controlled experiments and inspect each step; it is a baseline, not a contribution. Both apply Equation 1, so our modification applies equally to LIRICAL. <a href="#table-1">Table 1</a> lists the differences.</p>
+<figure id="table-1">
+<div class="table-box"><table>
+  <tr><th>Situation</th><th>Our scorer</th><th>LIRICAL 2.4.1</th></tr>
+  <tr><td>Patient has seizures; disease lists focal seizures (a narrower term)</td><td>No effect (×1)</td><td>Partial credit</td></tr>
+  <tr><td>Patient has seizures; disease says nothing about seizures</td><td>No effect (×1)</td><td>Disease ×1/100</td></tr>
+  <tr><td>Patient has seizures; disease is annotated as not having seizures</td><td>Disease removed</td><td>Disease ×1/1,000</td></tr>
+  <tr><td>f<sub>bg</sub>(X)</td><td><math><mfrac><mrow><mi>n</mi><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo></mrow><mi>N</mi></mfrac></math><br>n(X): number of diseases annotated with X; N = 12,867 diseases</td><td><math><mfrac><mn>1</mn><mi>N</mi></mfrac><munder><mo>∑</mo><mi>d</mi></munder><msub><mi>f</mi><mi>d</mi></msub><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo></math><br>f<sub>d</sub>(X): frequency of X in disease d, including annotations to descendant terms of X; floored at 1/10,000</td></tr>
+  <tr><td>Final score</td><td>Product of likelihood ratios</td><td>Starting chance × product (the same for every disease by default)</td></tr>
+</table></div>
+<figcaption><b>Table 1: Differences between our scorer and LIRICAL 2.4.1</b></figcaption>
+</figure>
+
+<h2>Results</h2>
+<figure id="fig-5">
+  <div class="statrow">
+    <span class="big">80.8%</span>
+    <p>of 1,157 leak-free cases have at least one "no X" that is a known feature of the <b>true</b> disease.</p>
+  </div>
+  <figcaption><b>Figure 5: Stated Absences That Point at the True Disease.</b> A "no X" counts if X is an HPO-annotated feature of the true disease.</figcaption>
+</figure>
+<p>Our main findings:</p>
+<ul>
+  <li><b>Reading "no X" as a Clue Turns the Loss into a Gain.</b> We replaced the rule-out ratio in Equation 1 with a weak positive ratio, giving Equation 2:</li>
+</ul>
+<div class="eq"><math display="block"><mi>S</mi><mo stretchy="false">(</mo><mi>D</mi><mo stretchy="false">)</mo><mo>=</mo><munder><mo>∏</mo><mrow><mi>X</mi><mo>∈</mo><mi>P</mi></mrow></munder><mfrac><mrow><msub><mi>f</mi><mi>D</mi></msub><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo></mrow><mrow><msub><mi>f</mi><mtext>bg</mtext></msub><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo></mrow></mfrac><mo>×</mo><munder><mo>∏</mo><mrow><mi>X</mi><mo>∈</mo><mi>A</mi></mrow></munder><msup><mrow><mo>(</mo><mfrac><mrow><msub><mi>f</mi><mi>D</mi></msub><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo></mrow><mrow><msub><mi>f</mi><mtext>bg</mtext></msub><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo></mrow></mfrac><mo>)</mo></mrow><mi>α</mi></msup></math><span class="eqn">(2)</span></div>
+<ul>
+  <li class="cont">α (0.1 to 0.5 across folds) weights an absence below an observed symptom and is chosen by 5-fold cross-validation grouped by paper (<a href="#alpha">Appendix</a>). Results are in <a href="#fig-6">Figure 6</a>.</li>
+</ul>
+<figure id="fig-6">
+  <div class="legend"><span style="--c: var(--c0)"><i></i>"No X" as rule-out (today)</span><span style="--c: var(--c1)"><i></i>"No X" ignored</span><span style="--c: var(--c2)"><i></i>"No X" as clue (fix)</span></div>
+  <div class="vchart">
+    <div class="vgroup">
+      <div class="vbars">
+        <div class="vbar">34.7%<i style="--v:34.7; --c: var(--c0)"></i></div>
+        <div class="vbar">49.3%<i style="--v:49.3; --c: var(--c1)"></i></div>
+        <div class="vbar">57.8%<i style="--v:57.8; --c: var(--c2)"></i></div>
+      </div>
+      <span class="vlabel">Our scorer (1,157 cases)</span>
+    </div>
+    <div class="vgroup">
+      <div class="vbars">
+        <div class="vbar">31.7%<i style="--v:31.7; --c: var(--c0)"></i></div>
+        <div class="vbar">43.0%<i style="--v:43.0; --c: var(--c1)"></i></div>
+        <div class="vbar">47.3%<i style="--v:47.3; --c: var(--c2)"></i></div>
+      </div>
+      <span class="vlabel">LIRICAL 2.4.1 (1,156 cases)</span>
+    </div>
+  </div>
+  <p class="takeaway">Top-10: rule-out loses, ignoring is neutral, the clue wins</p>
+  <figcaption><b>Figure 6: Three Readings of "No X" (top-10 accuracy, leak-free cases).</b></figcaption>
+</figure>
+<ul>
+  <li><b>Symbolic Tools Lose When Given "no X", but Every LLM Gains.</b> We ran each system with the absences deleted and kept (<a href="#fig-7">Figure 7</a>). The symbolic tools get worse and every LLM gets better, so the signal is real and the symbolic tools misread it.</li>
+</ul>
+<figure id="fig-7">
+  <div class="legend"><span style="--c: var(--c0)"><i></i>Top-10: "no X" deleted</span><span style="--c: var(--c1)"><i></i>Top-10: "no X" kept</span></div>
+  <div class="hchart">
+    <div class="hrow"><span class="hname">Our scorer<br><span class="hn">n = 1,172</span></span><div class="hbars"><div class="htrack"><i style="--v:48.6; --c: var(--c0)"></i>48.6%</div><div class="htrack"><i style="--v:34.3; --c: var(--c1)"></i>34.3%</div></div><span class="hdelta down">−14.3</span></div>
+    <div class="hrow"><span class="hname">LIRICAL 2.4.1<br><span class="hn">n = 1,171</span></span><div class="hbars"><div class="htrack"><i style="--v:42.4; --c: var(--c0)"></i>42.4%</div><div class="htrack"><i style="--v:31.3; --c: var(--c1)"></i>31.3%</div></div><span class="hdelta down">−11.1</span></div>
+    <div class="hsep"></div>
+    <div class="hrow"><span class="hname">GPT-4o<br><span class="hn">n = 1,040</span></span><div class="hbars"><div class="htrack"><i style="--v:14.0; --c: var(--c0)"></i>14.0%</div><div class="htrack"><i style="--v:17.1; --c: var(--c1)"></i>17.1%</div></div><span class="hdelta up">+3.1</span></div>
+    <div class="hrow"><span class="hname">DeepSeek V4.1 Flash<br><span class="hn">n = 1,040</span></span><div class="hbars"><div class="htrack"><i style="--v:34.2; --c: var(--c0)"></i>34.2%</div><div class="htrack"><i style="--v:37.7; --c: var(--c1)"></i>37.7%</div></div><span class="hdelta up">+3.5</span></div>
+    <div class="hrow"><span class="hname">Claude Sonnet 5<br><span class="hn">n = 1,031</span></span><div class="hbars"><div class="htrack"><i style="--v:44.7; --c: var(--c0)"></i>44.7%</div><div class="htrack"><i style="--v:47.9; --c: var(--c1)"></i>47.9%</div></div><span class="hdelta up">+3.2</span></div>
+    <div class="hrow"><span class="hname">Gemini 3.5 Flash<br><span class="hn">n = 1,040</span></span><div class="hbars"><div class="htrack"><i style="--v:52.5; --c: var(--c0)"></i>52.5%</div><div class="htrack"><i style="--v:60.6; --c: var(--c1)"></i>60.6%</div></div><span class="hdelta up">+8.1</span></div>
+    <div class="hrow"><span class="hname">GPT-5-mini<br><span class="hn">n = 1,031</span></span><div class="hbars"><div class="htrack"><i style="--v:40.5; --c: var(--c0)"></i>40.5%</div><div class="htrack"><i style="--v:45.7; --c: var(--c1)"></i>45.7%</div></div><span class="hdelta up">+5.2</span></div>
+    <div class="hrow"><span class="hname">GPT-5<br><span class="hn">n = 1,025</span></span><div class="hbars"><div class="htrack"><i style="--v:62.4; --c: var(--c0)"></i>62.4%</div><div class="htrack"><i style="--v:62.7; --c: var(--c1)"></i>62.7%</div></div><span class="hdelta up">+0.3</span></div>
+  </div>
+  <figcaption><b>Figure 7: Every System, "No X" Deleted vs Kept (top-10 accuracy, leak-free cases).</b></figcaption>
+</figure>
+<ul>
+  <li><b>Exomiser's Parsing Bug Produces the Same Effect.</b> Run in phenotype-only mode, Exomiser 14.0.1 ignores the <code>excluded</code> flag in Phenopacket v2 files (<a href="https://github.com/exomiser/Exomiser/issues/450">GitHub issue #450</a>), scoring each "no X" as an observed X, which raises its top-10 accuracy (<a href="#fig-8">Figure 8</a>). Ranks for the 1,316 cases without excluded terms are unchanged, so the gain comes entirely from excluded terms. Reese et al. (EJHG 2026) used this version as their LLM baseline. We are reporting the issue to the maintainers.</li>
+</ul>
+<figure id="fig-8">
+  <div class="legend"><span style="--c: var(--c0)"><i></i>Top-10: "no X" deleted</span><span style="--c: var(--c1)"><i></i>Top-10: "no X" read as X (bug)</span></div>
+  <div class="vchart">
+    <div class="vgroup">
+      <div class="vbars">
+        <div class="vbar">44.5%<i style="--v:44.5; --c: var(--c0)"></i></div>
+        <div class="vbar">53.9%<i style="--v:53.9; --c: var(--c1)"></i></div>
+      </div>
+      <span class="vlabel">All cases (4,782)</span>
+    </div>
+    <div class="vgroup">
+      <div class="vbars">
+        <div class="vbar">40.4%<i style="--v:40.4; --c: var(--c0)"></i></div>
+        <div class="vbar">54.7%<i style="--v:54.7; --c: var(--c1)"></i></div>
+      </div>
+      <span class="vlabel">Leak-free cases (1,172)</span>
+    </div>
+  </div>
+  <p class="takeaway">Even by accident, reading "no X" as a hint for X helps</p>
+  <figcaption><b>Figure 8: Exomiser's Bug Helps It (top-10 accuracy).</b></figcaption>
+</figure>
+<h2>For LLMs: The Categorizer</h2>
+<p>LLMs have no explicit formula to correct, so the categorizer has the LLM record its evidence and a simple formula produce the ranking, in three steps (<a href="#fig-9">Figure 9</a>).</p>
+<figure id="fig-9">
+  <div class="pipe">
+    <div class="step">Patient file</div>
+    <span class="arrow" aria-hidden="true">⟶</span>
+    <div class="step"><b>1 · LLM</b><br>Up to 10 candidate diseases, ranked</div>
+    <span class="arrow" aria-hidden="true">⟶</span>
+    <div class="step hot"><b>2 · LLM</b><br>Up to 6 typical symptoms per candidate, each put in a bucket; may add up to 5 new candidates</div>
+    <span class="arrow" aria-hidden="true">⟶</span>
+    <div class="step"><b>3 · Formula</b><br>6 learned weights; the candidate with the highest score wins</div>
+  </div>
+  <div class="table-box"><table>
+    <tr><th>Formula input</th><th>Meaning, for one candidate disease</th><th class="n">Weight</th></tr>
+    <tr><td>1/rank</td><td>Its rank in step 1 (0 if new)</td><td class="n">+3.43</td></tr>
+    <tr><td>New</td><td>1 if it was added in step 2</td><td class="n">−1.02</td></tr>
+    <tr><td># Present symptoms</td><td>On the candidate's list; the patient file says <b>present</b></td><td class="n">+3.13</td></tr>
+    <tr><td class="red"># Absent symptoms</td><td>On the candidate's list; the patient file says <b>"no X"</b></td><td class="n red">+2.64</td></tr>
+    <tr><td># Salient</td><td>On the candidate's list; the patient file is <b>silent</b>, though a doctor would have seen it</td><td class="n">+1.41</td></tr>
+    <tr><td># Plausibly omitted</td><td>On the candidate's list; the patient file is <b>silent</b>, and it is easy to miss</td><td class="n">+1.81</td></tr>
+  </table></div>
+  <p class="takeaway">The LLM only sorts the evidence; the formula decides</p>
+  <figcaption><b>Figure 9: The Categorizer.</b> Weights learned for Gemini 3.5 Flash. Salient vs plausibly omitted follows SatIR (<a href="https://arxiv.org/abs/2604.08849">Zhou et al. 2026</a>).</figcaption>
+</figure>
+<p>The learned weight for absent symptoms is positive and nearly as large as that for present symptoms (<a href="#fig-9">Figure 9</a>; buckets for the running example in <a href="#fig-10">Figure 10</a>).</p>
+<figure id="fig-10">
+  <div class="table-box"><table>
+    <tr><th>Marfan syndrome feature</th><th>What the patient file says</th><th>Bucket</th></tr>
+    <tr><td>Tall stature, long fingers</td><td>"tall", "long fingers"</td><td>Present symptom</td></tr>
+    <tr><td>Lens dislocation</td><td>"no lens dislocation"</td><td class="red">Absent symptom</td></tr>
+    <tr><td>Chest wall deformity</td><td>Nothing, though easy to see</td><td>Salient</td></tr>
+    <tr><td>Spinal sac widening</td><td>Nothing; needs an MRI</td><td>Plausibly omitted</td></tr>
+  </table></div>
+  <figcaption><b>Figure 10: The Categorizer on the Running Example.</b></figcaption>
+</figure>
+<p>We also let the LLM rank the candidates itself instead of the formula, and compared both with its first guess (<a href="#fig-11">Figure 11</a>).</p>
+<figure id="fig-11">
+  <div class="legend"><span style="--c: var(--c0)"><i></i>LLM's first guess</span><span style="--c: var(--c1)"><i></i>Categorizer + learned weights</span><span style="--c: var(--c2)"><i></i>Categorizer + LLM ranks itself</span></div>
+  <div class="vchart">
+    <div class="vgroup">
+      <div class="vbars">
+        <div class="vbar">55.0%<i style="--v:55.0; --c: var(--c0)"></i></div>
+        <div class="vbar">62.0%<i style="--v:62.0; --c: var(--c1)"></i></div>
+        <div class="vbar">61.2%<i style="--v:61.2; --c: var(--c2)"></i></div>
+      </div>
+      <span class="vlabel">Gemini 3.5 Flash</span>
+    </div>
+    <div class="vgroup">
+      <div class="vbars">
+        <div class="vbar">40.5%<i style="--v:40.5; --c: var(--c0)"></i></div>
+        <div class="vbar">41.3%<i style="--v:41.3; --c: var(--c1)"></i></div>
+        <div class="vbar">43.1%<i style="--v:43.1; --c: var(--c2)"></i></div>
+      </div>
+      <span class="vlabel">GPT-5-mini</span>
+    </div>
+  </div>
+  <figcaption><b>Figure 11: Learned Weights vs LLM Self-Ranking (top-10 accuracy, 1,040 leak-free cases, reasoning off).</b></figcaption>
+</figure>
+
+<h2>Conclusion: Where Do We Go From Here?</h2>
+<p>Our findings bring bad news and good news.</p>
+<p>The bad news is that standard symbolic tools read "no X" as a rule-out, pushing the right diagnosis down, while a widely used tool reads it as present by accident and served as a published LLM baseline (Reese et al., EJHG 2026). The good news is that the fix is simple: reading "no X" as a clue helps every system we tested (<a href="#fig-12">Figure 12</a>).</p>
+<figure id="fig-12">
+  <div class="legend"><span style="--c: var(--c0)"><i></i>Before: "no X" as rule-out (symbolic) · LLM's first guess</span><span style="--c: var(--c1)"><i></i>After: "no X" as clue (symbolic) · categorizer (LLM)</span></div>
+  <div class="vchart">
+    <div class="vgroup"><div class="vbars"><div class="vbar">34.7%<i style="--v:34.7; --c: var(--c0)"></i></div><div class="vbar">57.8%<i style="--v:57.8; --c: var(--c1)"></i></div></div><span class="vlabel">Our scorer (1,157)</span><span class="delta">+23.1</span></div>
+    <div class="vgroup"><div class="vbars"><div class="vbar">31.7%<i style="--v:31.7; --c: var(--c0)"></i></div><div class="vbar">47.3%<i style="--v:47.3; --c: var(--c1)"></i></div></div><span class="vlabel">LIRICAL (1,156)</span><span class="delta">+15.6</span></div>
+    <div class="vgroup"><div class="vbars"><div class="vbar">55.0%<i style="--v:55.0; --c: var(--c0)"></i></div><div class="vbar">62.0%<i style="--v:62.0; --c: var(--c1)"></i></div></div><span class="vlabel">Gemini 3.5 Flash (1,040)</span><span class="delta">+7.0</span></div>
+    <div class="vgroup"><div class="vbars"><div class="vbar">40.5%<i style="--v:40.5; --c: var(--c0)"></i></div><div class="vbar">41.3%<i style="--v:41.3; --c: var(--c1)"></i></div></div><span class="vlabel">GPT-5-mini (1,040)</span><span class="delta">+0.8</span></div>
+  </div>
+  <p class="takeaway">Reading "no X" as a clue helps every system</p>
+  <figcaption><b>Figure 12: Before and After the Fix (top-10 accuracy, leak-free cases).</b> LLMs run with reasoning off.</figcaption>
+</figure>
+<p>Absence has no agreed meaning: the Phenopacket <code>excluded</code> field means "looked for and found absent" in the standard, a rule-out to LIRICAL, and present to Exomiser 14.0.1. We see four directions for future research (<a href="#fig-13">Figure 13</a>).</p>
+<figure id="fig-13">
+  <div class="table-box"><table>
+    <tr><th>Direction</th><th>Idea</th></tr>
+    <tr><td>Context</td><td>The same silence means different things, depending on who wrote the file</td></tr>
+    <tr><td>The doctor's suspicion</td><td>A "no X" reveals what the doctor suspected; models should use it</td></tr>
+    <tr><td>A meaning for absence</td><td>Tools disagree on what "no X" means; absence needs a formal meaning</td></tr>
+    <tr><td>Honest evaluation</td><td>Case reports know the answer; benchmarks must not reward hindsight</td></tr>
+  </table></div>
+  <p class="takeaway">Absences point to the right answer, when read in context</p>
+  <figcaption><b>Figure 13: Where We Go Next.</b></figcaption>
+</figure>
+
+<h2>Appendix</h2>
+<h3>Data leakage</h3>
+<figure id="table-2">
+<div class="table-box"><table>
+  <tr><th>Phenopacket Store cases</th><th class="n">Cases</th></tr>
+  <tr><td>All</td><td class="n">4,782</td></tr>
+  <tr><td>Leaked: the disease database cites the case's own paper</td><td class="n">2,701 (56.5%)</td></tr>
+  <tr><td>Clean</td><td class="n">1,624</td></tr>
+  <tr><td>Clean, with at least one "no X"</td><td class="n">1,172</td></tr>
+</table></div>
+<figcaption><b>Table 2: Data leakage in Phenopacket Store</b></figcaption>
+</figure>
+<ul>
+  <li>Our scorer, top-10: 82.5% on leaked cases vs 33.2% on clean cases.</li>
+  <li>Excluded terms annotated as present for the true disease: 95.9% (leaked) vs 30.5% (clean).</li>
+  <li>Same-paper leakage has been reported before (Jiang et al. 2026; Yang et al. 2026); excluded terms were not tested.</li>
+  <li>457 cases have no PubMed ID and are excluded from both groups.</li>
+</ul>
+<h3 id="alpha">Choosing α</h3>
+<ul>
+  <li>5-fold cross-validation grouped by paper. α per fold: our scorer 0.5, 0.5, 0.5, 0.5, 0.3; LIRICAL 0.1, 0.3, 0.1, 0.1, 0.1.</li>
+  <li>Held-out half (521 cases), α fixed on the other half: top-10 31.5% → 39.9%.</li>
+  <li>Control, same number of random terms from other papers: 30.3%.</li>
+  <li>13 softened rule-out penalties: best 42.1%, below ignoring "no X" (43.5%).</li>
+  <li>Top-1 accuracy: no improvement.</li>
+</ul>
+</article>
+</body>
+</html>
