@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>One Test, Many Patients</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+:root { color-scheme: light; --bg: #ffffff; --fg: #383838; --muted: #8a8a8a; --rule: #e6e6e6; --blue: #0076df; --cardinal: #8c1515; }
+body { background: var(--bg); color: var(--fg); font-family: "Open Sans", "Helvetica Neue", Arial, sans-serif; font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 80px; margin: 0; }
+.topbar { max-width: 1100px; margin: 0 auto 36px; border-bottom: 5px solid var(--cardinal); padding-top: 18px; }
+.wrap { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 1em; }
+header { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding-bottom: 22px; margin-bottom: 8px; border-bottom: 1px solid var(--rule); }
+h1 { font-size: clamp(30px, 5.5vw, 44px); line-height: 1.2; font-weight: 400; margin: 0 0 6px; text-wrap: balance; color: #212529; }
+.authors { font-size: 19px; margin: 0; }
+.author { color: var(--blue); }
+.date { font-size: 14px; color: var(--muted); margin: 6px 0 0; }
+h2 { font-size: 26px; line-height: 1.3; font-weight: 700; margin: 1.1em 0 0; }
+p { margin: 0; }
+ul { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 0.4em; }
+.note { font-style: italic; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+<div class="topbar" aria-hidden="true"></div>
+<article class="wrap">
+<header>
+  <h1>One Test, Many Patients: Family-Level Genetic Testing at Scale</h1>
+  <p class="authors"><span class="author">Raj Hansini</span>, Kanix Wang, Dan Adelman</p>
+  <p class="date">University of Chicago · In progress</p>
+</header>
+
+<p class="note">Full write-up coming soon.</p>
+
+<h2>Overview</h2>
+<ul>
+  <li>Clinical testing decisions are made one patient at a time, yet a genetic result also reveals the risk of every blood relative, so the true value of a test belongs to the family.</li>
+  <li>Planning tests across the whole family is optimal but becomes computationally intractable beyond about five members, which keeps family-level planning out of clinical practice.</li>
+  <li>We are developing a graph neural network that learns these family-level decisions, scaling them to real pedigrees and adapting to new testing costs and disease risks without retraining.</li>
+</ul>
+</article>
+</body>
+</html>
